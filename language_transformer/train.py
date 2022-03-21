@@ -9,7 +9,7 @@ import torch
 def main():
     args = config.parse_args()
 
-    x, seq, y, y_dirt, origin_shape, num_tokens, voc_size, num_patch = load_data(args)
+    x, seq, y, y_dirt, origin_shape, num_tokens, voc_size, num_patch, mask = load_data(args)
     print(seq.shape, y_dirt.shape)
 
     store_img(restore_img(y, args.patch_size, origin_shape), args.img_dir + "{}.jpg".format("origin"))
@@ -30,13 +30,12 @@ def main():
             model.train()
 
         model.train()
-        model.optimize_parameters(x, seq, y_dirt)
+        model.optimize_parameters(x, seq, y_dirt, mask)
         metric.evaluate(model.out, y, model.loss)
 
-        if (i + 1) % 1000 == 0:
+        if (i + 1) % 500 == 0:
             print("epoch: " + str(i + 1) + " " + str(model.loss.item()))
-
-    store_fig(metric.psnr_list, metric.ssim_list, metric.loss_list, args.img_dir + "{fig}.jpg", args)
+            store_fig(metric.psnr_list, metric.ssim_list, metric.loss_list, args.img_dir + "fig.jpg", i + 1)
 
 
 if __name__ == '__main__':

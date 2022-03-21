@@ -1,6 +1,5 @@
 from __future__ import print_function
 import cv2
-import h5py
 import torch
 import urllib.request as urll
 from model.image_processor import add_noise, pad_image, tokenize_img, show_image
@@ -27,12 +26,12 @@ def load_data(args, filename='file1339.h5'):
     img = img.transpose((2, 1, 0))
     y = img
 
-    y_dirt = add_noise(img)
+    y_dirt, mask = add_noise(img)
     orig_shape = y_dirt.shape
     if args.use_noise:
         x = torch.randn(orig_shape)
     else:
-        x = torch.FloatTensor(y)
+        x = torch.FloatTensor(y_dirt)
     y = torch.FloatTensor(y)
 
     x, orig_size = pad_image(x, args.patch_size)
@@ -44,10 +43,13 @@ def load_data(args, filename='file1339.h5'):
     batch_size = 1
     weights = torch.ones(voc_size).expand(batch_size, -1)
     seq = torch.multinomial(weights, num_samples=num_patch, replacement=False)
+    # seq = torch.zeros((1, num_patch)).int()
 
     y = tokenize_img(y, args.patch_size)
     y_dirt = tokenize_img(y_dirt, args.patch_size)
+    mask, _ = pad_image(mask, args.patch_size)
+    mask = tokenize_img(mask, args.patch_size)
     y_dirt = y_dirt.float()
 
     return x.to(args.device), seq.to(args.device), y.to(args.device), y_dirt.to(
-        args.device), orig_size, num_patch, voc_size, patch_len
+        args.device), orig_size, num_patch, voc_size, patch_len, mask.to(args.device)

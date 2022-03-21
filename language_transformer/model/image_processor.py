@@ -4,7 +4,6 @@ from PIL import Image
 from einops import rearrange
 import matplotlib.pyplot as plt
 import torchvision.transforms as T
-from ConvDecoder.demo_helper.helpers import apply_mask, MaskFunc, ifft2, channels2imgs, root_sum_of_squares, crop_center
 
 
 def show_image(imgs, titles):
@@ -18,34 +17,33 @@ def show_image(imgs, titles):
 
 
 def add_noise(img):
-    # convert complex numpy to torch tensor
-    # data = img.copy()
-    # data = np.stack((data.real, data.imag), axis=-1)
-    # slice_ksp = torch.FloatTensor(data)
-    #
-    # # Create masks for retrospectively under-sampling. (By default: 4X)
-    # masked_kspace, mask = apply_mask(slice_ksp,
-    #                                  mask_func=MaskFunc(center_fractions=[0.07], accelerations=[4]))
-    #
-    # multi_img = ifft2(masked_kspace)
-    # img_dirt = []
-    # for img in multi_img.detach().cpu():
-    #     img_dirt += [img[:, :, 0].numpy(), img[:, :, 1].numpy()]
-    # img_dirt = channels2imgs(np.array(img_dirt))
-    # img_dirt = root_sum_of_squares(torch.from_numpy(img_dirt))
-    # special crop
-    # if img_dirt.shape[0] > 320:
-    #     img_dirt = crop_center(img_dirt, 320, 320)
-    img = torch.FloatTensor(img)
-    img_dirt = T.GaussianBlur(kernel_size=(5, 5), sigma=(0.1, 5))(img)
-    img_dirt += torch.randn(img_dirt.shape)
+    img = normalize_img(img)
+    noise = np.random.normal(scale=25/255., size=img.shape)
+    img = np.clip(img + noise, 0, 1).astype(np.float32)
+    img_dirt = torch.FloatTensor(img)
+    # img_dirt = T.GaussianBlur(kernel_size=(5, 5), sigma=(0.1, 5))(img)
+    mask = torch.ones_like(img_dirt)
+    # value = torch.zeros_like(img_dirt)
+    # size = 50
+    # start = 240
+    # end = 200
+    # mask[:, start:start + size, end:end + size] = 0
+    # value[:, start:start + size, end:end + size] = 0
+    # img_dirt = img_dirt * mask + value
 
-    return img_dirt
+    # img_dirt = normalize_img(img_dirt)
+    # # noise = np.random.normal(0, 0.1 ** 0.5, img_dirt.shape)
+    # noise = torch.rand(img_dirt.shape)
+    # img_dirt += noise
+
+    return img_dirt, mask
 
 
 def normalize_img(img):
     max_v = img.max()
     min_v = img.min()
+    if max_v - min_v <= 0:
+        return img
     return (img - min_v) / (max_v - min_v)
 
 
@@ -96,9 +94,9 @@ def store_img(img, img_dir):
     image.save(img_dir)
 
 
-def store_fig(psnr_list, ssim_list, loss_list, fig_dir, args):
+def store_fig(psnr_list, ssim_list, loss_list, fig_dir, num):
 
-    iter_nums = np.linspace(1, args.num_epoch, args.num_epoch)
+    iter_nums = np.linspace(1, num, num)
     plots = plt.figure(figsize=(15, 4))
     ax = plots.add_subplot(141)
     ax.plot(iter_nums, psnr_list)
