@@ -18,11 +18,10 @@ from pathlib import Path
 
 import torch
 import torch.backends.cudnn as cudnn
+from torch.utils.data import Subset
 from torch.utils.tensorboard import SummaryWriter
 import torchvision.transforms as transforms
-import torchvision.datasets as datasets
-
-import timm
+from model_mask.custom_dataset import CustomDataset
 
 import timm.optim.optim_factory as optim_factory
 
@@ -119,18 +118,17 @@ def main(args):
 
     # simple augmentation
     transform_train = transforms.Compose([
-        transforms.RandomResizedCrop(args.input_size, scale=(0.2, 1.0), interpolation=3),  # 3 is bicubic
-        transforms.RandomHorizontalFlip(),
+        transforms.Resize(args.input_size),  # 3 is bicubic
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-    dataset_train = datasets.ImageFolder(os.path.join(args.data_path), transform=transform_train)
+    custom_dataset = CustomDataset(args, transform_train)
 
-    sampler_train = torch.utils.data.RandomSampler(dataset_train)
+    sampler_train = torch.utils.data.RandomSampler(custom_dataset)
 
     log_writer = None
 
     data_loader_train = torch.utils.data.DataLoader(
-        dataset_train, sampler=sampler_train,
+        custom_dataset, sampler=sampler_train,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         pin_memory=args.pin_mem,
